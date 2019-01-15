@@ -62,22 +62,22 @@ class Audio(object):
         '''
         Start record.
         '''
-        self._start()
         self.state = 'recording'
+        self._start()
 
     def stop(self):
         '''
         Stop record.
         '''
-        self._stop()
         self.state = 'ready'
+        self._stop()
 
     def play(self):
         '''
         Play current recording.
         '''
-        self._play()
         self.state = 'playing'
+        self._play()
 
     @property
     def file_path(self):
