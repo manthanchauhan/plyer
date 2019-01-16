@@ -16,34 +16,34 @@ class LinuxAudio(Audio):
 
     def _start(self):
         self.state = 'recording'
-        self._recording = threading.Thread(target=self.__record, args=[lambda: self.state, ])
+        self._recording = threading.Thread(target=self.__record, args=(lambda: self.state, ))
         self._recording.start()
 
     def __record(self, terminator):
         self._count = 0
-        state = terminator()
-        while state == 'recording':
-            print(state)
-            print(self._count)
-            self._data = sounddevice.rec(int(10 * 44100), 44100, 2)
+        while terminator() == 'recording':
+            print('recording {:d}'.format(self._count))
+            self._data = sounddevice.rec(int(60 * 44100), 44100, 2)
             sounddevice.wait()
+            print('recorded {:d}'.format(self._count))
             wavfile.write(str(self._file_path) + str(self._count) + '.wav', sounddevice.default.samplerate, self._data)
             self._count += 1
+        print('written {:d}'.format(self._count))
+        # self._recording.join()
 
     def _stop(self):
         self.state = 'ready'
-        # print('stopped')
+        print('stopping')
         sounddevice.stop()
-        wavfile.write(str(self._file_path) + str(self._count) + '.wav', sounddevice.default.samplerate, self._data)
+        print('stopped')
         self._recording.join()
+        # print(self._data)
 
 
 if __name__ == '__main__':
     recoder = LinuxAudio()
     recoder.start()
-    # print(recoder._data)
     import time
-    time.sleep(15)
-    print('time to stop')
+    time.sleep(1)
     recoder.stop()
 
