@@ -1,49 +1,61 @@
 from plyer.facades import Audio
-from plyer.utils import whereis_exe
-import sounddevice
-import multiprocessing
+# from plyer.utils import whereis_exe
+import pyaudio
+import wave
 import threading
-from scipy.io import wavfile
 
 
 class LinuxAudio(Audio):
-    sounddevice.default.samplerate = 44100
-    sounddevice.default.channels = 2
-    _data = None
-    _count = None
-    _file_path = '/home/manthan/Git/plyer/'
+    _chunk = 1024
+    _format = pyaudio.paInt16
+    _channels = 2
+    _rate = 44100
+    _file_path = '/home/manthan/Git/plyer/recording'
+    _frames = []
     _recording = None
 
     def _start(self):
-        self.state = 'recording'
-        self._recording = threading.Thread(target=self.__record, args=(lambda: self.state, ))
+        self._recording = threading.Thread(target=self.__record, args=())
         self._recording.start()
 
-    def __record(self, terminator):
-        self._count = 0
-        while terminator() == 'recording':
-            print('recording {:d}'.format(self._count))
-            self._data = sounddevice.rec(int(60 * 44100), 44100, 2)
-            sounddevice.wait()
-            print('recorded {:d}'.format(self._count))
-            wavfile.write(str(self._file_path) + str(self._count) + '.wav', sounddevice.default.samplerate, self._data)
-            self._count += 1
-        print('written {:d}'.format(self._count))
-        # self._recording.join()
+    def __record(self):
+        self._frames = []
+        p = pyaudio.PyAudio()
+        stream = p.open(format=self._format,
+                        channels=self._channels,
+                        rate=self._rate,
+                        input=True,
+                        frames_per_buffer=self._chunk,
+                        )
+        while self.state == 'recording':
+            data = stream.read(self._chunk)
+            self._frames.append(data)
+        stream.stop_stream()
+        stream.close()
+        p.terminate()
+
+    def _save(self, filename):
+        p = pyaudio.PyAudio()
+        if not filename.endswith('.wav'):
+            filename = filename + '.wav'
+        wf = wave.open(filename, 'wb')
+        wf.setnchannels(self._channels)
+        wf.setsampwidth(p.get_sample_size(self._format))
+        wf.setframerate(self._rate)
+        wf.writeframes(b''.join(self._frames))
+        wf.close()
 
     def _stop(self):
-        self.state = 'ready'
-        print('stopping')
-        sounddevice.stop()
-        print('stopped')
-        self._recording.join()
-        # print(self._data)
+        self._save(self._file_path)
 
+
+def instance():
+    return LinuxAudio()
 
 if __name__ == '__main__':
     recoder = LinuxAudio()
     recoder.start()
     import time
-    time.sleep(1)
+    time.sleep(3)
     recoder.stop()
 
